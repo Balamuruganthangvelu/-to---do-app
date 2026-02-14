@@ -1,4 +1,6 @@
 flask
+flask_sqlal_chemy
 gunicorn
 psycopg2-binary
+
 
