@@ -6,94 +6,76 @@ const taskList = document.getElementById("taskList");
 
 let lastDeleted = null;
 
-// Load tasks when page loads
+// Load tasks from DATABASE (not localStorage)
 document.addEventListener("DOMContentLoaded", loadTasks);
 
 addBtn.addEventListener("click", addTask);
 undoBtn.addEventListener("click", undoTask);
 
 function addTask() {
-  if (input.value === "") return;
+    if (input.value === "") return;
 
-  const task = {
-    text: input.value,
-    date: dateInput.value,
-    completed: false
-  };
+    fetch("/tasks", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                text: input.value,
+                date: dateInput.value
+            })
+        })
+        .then(res => res.json())
+        .then(() => {
+            loadTasks(); // reload from Neon DB
+        });
 
-  saveTask(task);
-  createTaskElement(task);
-
-  input.value = "";
-  dateInput.value = "";
-}
-
-function createTaskElement(task) {
-  const li = document.createElement("li");
-
-  const span = document.createElement("span");
-  span.textContent = task.text + " (" + task.date + ")";
-  li.appendChild(span);
-
-  const checkbox = document.createElement("input");
-  checkbox.type = "checkbox";
-  checkbox.checked = task.completed;
-  li.appendChild(checkbox);
-
-  checkbox.addEventListener("change", () => {
-    task.completed = checkbox.checked;
-    updateStorage();
-  });
-
-  li.addEventListener("dblclick", () => {
-    lastDeleted = task;
-    li.remove();
-    deleteTask(task);
-  });
-
-  taskList.appendChild(li);
-}
-
-function saveTask(task) {
-  const tasks = getTasks();
-  tasks.push(task);
-  localStorage.setItem("tasks", JSON.stringify(tasks));
-}
-
-function getTasks() {
-  return JSON.parse(localStorage.getItem("tasks")) || [];
+    input.value = "";
+    dateInput.value = "";
 }
 
 function loadTasks() {
-  const tasks = getTasks();
-  tasks.forEach(task => createTaskElement(task));
+    fetch("/tasks")
+        .then(res => res.json())
+        .then(tasks => {
+            taskList.innerHTML = ""; // clear list
+            tasks.forEach(task => createTaskElement(task));
+        });
 }
 
-function deleteTask(taskToDelete) {
-  let tasks = getTasks();
-  tasks = tasks.filter(task => task.text !== taskToDelete.text);
-  localStorage.setItem("tasks", JSON.stringify(tasks));
+function createTaskElement(task) {
+    const li = document.createElement("li");
+
+    const span = document.createElement("span");
+    span.textContent = task.text + " (" + task.date + ")";
+    li.appendChild(span);
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = task.completed;
+    li.appendChild(checkbox);
+
+    li.addEventListener("dblclick", () => {
+        lastDeleted = task;
+
+        fetch(/tasks/$ { task.id }, {
+            method: "DELETE"
+        }).then(() => loadTasks());
+    });
+
+    taskList.appendChild(li);
 }
 
 function undoTask() {
-  if (lastDeleted) {
-    saveTask(lastDeleted);
-    createTaskElement(lastDeleted);
-    lastDeleted = null;
-  }
-}
+    if (lastDeleted) {
+        fetch("/tasks", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(lastDeleted)
+        }).then(() => loadTasks());
 
-function updateStorage() {
-  const tasks = [];
-  document.querySelectorAll("#taskList li").forEach(li => {
-    const spanText = li.querySelector("span").textContent;
-    const checkbox = li.querySelector("input");
-    const parts = spanText.split(" (");
-    tasks.push({
-      text: parts[0],
-      date: parts[1].replace(")", ""),
-      completed: checkbox.checked
-    });
-  });
-  localStorage.setItem("tasks", JSON.stringify(tasks));
+        lastDeleted = null;
+    }
 }
