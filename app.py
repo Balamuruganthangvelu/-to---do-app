@@ -1,9 +1,13 @@
-from flask import Flask,request,jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
-from flask import  Flask,render_template
+import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
+
+# Use Neon database from Render environment
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 
 class Task(db.Model):
@@ -13,14 +17,19 @@ class Task(db.Model):
 with app.app_context():
     db.create_all()
 
-@app.route('/add', methods=['POST'])
+# POST to /tasks (same route)
+@app.route('/tasks', methods=['POST'])
 def add_task():
     data = request.get_json()
-    new_task = Task(content=data['content'])
+    print("Received:", data)
+
+    new_task = Task(content=data.get('text'))
     db.session.add(new_task)
     db.session.commit()
+
     return jsonify({'message': 'Task added successfully'})
 
+# GET from /tasks
 @app.route('/tasks', methods=['GET'])
 def get_tasks():
     tasks = Task.query.all()
@@ -29,5 +38,6 @@ def get_tasks():
 @app.route("/")
 def home():
     return render_template('index.html')
+
 if __name__ == '__main__':
-    app.run(host="0.0.0.",port=5000,debug=True)
+    app.run(debug=True)
